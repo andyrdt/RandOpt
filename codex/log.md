@@ -1,0 +1,79 @@
+# Codex Log
+
+## 2026-03-13
+
+- Read the paper source in `paper/main.tex`.
+- Explored the main code paths:
+  - `randopt.py`
+  - `core/engine.py`
+  - `utils/worker_extn.py`
+  - `data_handlers/`
+  - `1D_signals_expts/`
+  - `diffusion/text2im.py`
+- Read `neural_thickets_critique.md` and verified the main code-level claims:
+  - perturbation RNG is re-seeded per parameter tensor in `utils/worker_extn.py`
+  - reproduction utility uses a different RNG progression in `utils/repro_seed.py`
+  - ROCStories ensemble correctness is treated with truthiness in `randopt.py`
+- Confirmed the node exposes 8 A100 80GB GPUs, with GPUs `4`, `6`, and `7` appearing mostly free at inspection time.
+- Confirmed local blockers before running experiments:
+  - repo data files are not downloaded yet
+  - the default system Python has no required packages installed
+  - `Qwen/Qwen2.5-7B-Instruct` appears cached under `~/.cache/huggingface/hub`
+- Switched environment setup plan to use a `uv` virtual environment.
+- Created repo-local `.venv` with `uv` using Python 3.12 and installed the repo requirements there.
+- Downloaded `data/countdown/countdown.json`.
+- Identified a launcher pitfall in `randopt.py`:
+  - the `--cuda_devices` CLI arg defaults to `0,1,2,3`
+  - `parse_args()` unconditionally writes `os.environ["CUDA_VISIBLE_DEVICES"] = args.cuda_devices`
+  - this overrode manual shell-level GPU selection until `--cuda_devices` was passed explicitly
+- Confirmed a clean 1-GPU as-is smoke test on GPU `4` with:
+  - model: `Qwen/Qwen2.5-3B-Instruct`
+  - dataset: `countdown`
+  - split: `train_samples=50`, `test_samples=50`
+  - population: `N=4`
+  - `K in {1,2}`
+- Smoke-test result:
+  - base accuracy: `15.12%`
+  - `K=1`: `16.00%`
+  - `K=2`: `22.00%`
+  - result directory: `codex/experiments/countdown_20260313_221148/`
+- Added an explicit perturbation RNG mode to the code:
+  - `per_parameter`: released behavior
+  - `global_stream`: one generator stream across parameter tensors
+- Saved the perturbation mode and full sampled perturbation rewards into `results.json` for later comparison.
+- Ran a first seed-bug A/B on the same setup (`Qwen/Qwen2.5-3B-Instruct`, `countdown`, `50/50`, `N=16`):
+  - released sampler: `codex/experiments/countdown_20260313_221857/`
+  - fixed RNG sampler: `codex/experiments/countdown_20260313_222435/`
+- A/B summary:
+  - base test accuracy was the same: `15.12%`
+  - released sampler:
+    - mean train reward: `0.1489`
+    - max train reward: `0.2158`
+    - hit-rate above base-train reward: `9/16 = 0.562`
+    - ensemble accuracies: `K=1 -> 14.0%`, `K=2 -> 20.0%`, `K=4 -> 24.0%`
+  - fixed RNG sampler:
+    - mean train reward: `0.1223`
+    - max train reward: `0.1998`
+    - hit-rate above base-train reward: `7/16 = 0.438`
+    - ensemble accuracies: `K=1 -> 12.0%`, `K=2 -> 20.0%`, `K=4 -> 28.0%`
+- Preliminary interpretation:
+  - the seed bug changes the perturbation reward distribution materially
+  - top-1 got worse under fixed RNG on this slice
+  - top-4 ensemble got better under fixed RNG on this slice
+  - so the bug matters, but not in the simple direction “everything collapses”
+- Ran a rough sigma sweep under the fixed RNG sampler:
+  - result directory: `codex/experiments/countdown_20260313_223033/`
+  - setup: same model/split, `N=30`, sigma list `{0.00025, 0.0005, 0.001, 0.002, 0.004}`
+  - per-sigma mean train rewards:
+    - `0.00025 -> 0.1474`
+    - `0.0005 -> 0.1357`
+    - `0.001 -> 0.1157`
+    - `0.002 -> 0.1272`
+    - `0.004 -> 0.0478`
+  - ensemble accuracies:
+    - `K=1 -> 18.0%`
+    - `K=2 -> 20.0%`
+    - `K=3 -> 26.0%`
+- Preliminary interpretation:
+  - under the fixed RNG sampler, very large sigma (`0.004`) is clearly too destructive
+  - smaller sigma (`0.00025` to `0.0005`) looks stronger than the paper-style `0.001` or `0.002` on this slice

@@ -66,13 +66,27 @@ class WorkerExtension:
         torch.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
+    def _perturb_seed_mode(self) -> str:
+        """How perturbation RNG should advance across parameter tensors."""
+        return os.environ.get("VLLM_RANDOPT_PERTURB_SEED_MODE", "per_parameter")
+
+    @staticmethod
+    def _make_generator(device, seed: int) -> torch.Generator:
+        gen = torch.Generator(device=device)
+        gen.manual_seed(int(seed))
+        return gen
+
     def perturb_self_weights(self, seed, noise_scale, negate=False):
         self._set_seed(seed)
         scale = float(noise_scale)
         sign = -1.0 if negate else 1.0
+        seed_mode = self._perturb_seed_mode()
+        shared_gens = {}
         for name, p in self.model_runner.model.named_parameters():
-            gen = torch.Generator(device=p.device)
-            gen.manual_seed(int(seed))
+            if seed_mode == "global_stream":
+                gen = shared_gens.setdefault(p.device, self._make_generator(p.device, seed))
+            else:
+                gen = self._make_generator(p.device, seed)
             noise = torch.randn(p.shape, dtype=p.dtype, device=p.device, generator=gen)
             if self._should_perturb(name):
                 p.data.add_(sign * scale * noise)
@@ -86,9 +100,13 @@ class WorkerExtension:
         """Undo perturbation. Must use same negate value as perturb_self_weights."""
         self._set_seed(seed)
         sign = -1.0 if negate else 1.0  # Same sign as perturb
+        seed_mode = self._perturb_seed_mode()
+        shared_gens = {}
         for name, p in self.model_runner.model.named_parameters():
-            gen = torch.Generator(device=p.device)
-            gen.manual_seed(int(seed))
+            if seed_mode == "global_stream":
+                gen = shared_gens.setdefault(p.device, self._make_generator(p.device, seed))
+            else:
+                gen = self._make_generator(p.device, seed)
             noise = torch.randn(p.shape, dtype=p.dtype, device=p.device, generator=gen)
             if self._should_perturb(name):
                 # Undo: subtract what we added (sign * sigma * noise)
@@ -192,9 +210,13 @@ class WorkerExtension:
         """
         os.makedirs(out_dir, exist_ok=True)
         noise_state = {}
+        seed_mode = self._perturb_seed_mode()
+        shared_gens = {}
         for name, p in self.model_runner.model.named_parameters():
-            gen = torch.Generator(device=p.device)
-            gen.manual_seed(int(seed))
+            if seed_mode == "global_stream":
+                gen = shared_gens.setdefault(p.device, self._make_generator(p.device, seed))
+            else:
+                gen = self._make_generator(p.device, seed)
             noise = torch.randn(p.shape, dtype=p.dtype, device=p.device, generator=gen)
             noise_state[name] = noise.detach().cpu()
             del noise

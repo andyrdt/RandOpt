@@ -1,9 +1,20 @@
 **/__pycache__/**
+**/.ipynb_checkpoints/**
 **/logs/**
 **/wandb/**
 **/logs*/**
 
 *data_base/
+.venv/
+codex/experiments/
+codex/*.log
+codex/ray_probe/
+data/*/
+!data/README.md
+paper/
+*.swp
+*.tmp
+.DS_Store
 
  *.pyc
  *.pth

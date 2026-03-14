@@ -54,6 +54,17 @@ def parse_args():
     parser.add_argument("--tp", type=int, default=1,
                         help="Tensor parallel size per engine (use 2+ for 7B+ models)")
     parser.add_argument("--cuda_devices", type=str, default="0,1,2,3")
+    parser.add_argument(
+        "--perturb_seed_mode",
+        type=str,
+        choices=["per_parameter", "global_stream"],
+        default="per_parameter",
+        help=(
+            "How Gaussian perturbation RNG is advanced across parameter tensors. "
+            "'per_parameter' matches the released code; 'global_stream' uses one "
+            "generator stream across all tensors."
+        ),
+    )
     parser.add_argument("--global_seed", type=int, default=42)
     parser.add_argument("--experiment_dir", type=str, default="es-experiment")
     parser.add_argument("--resume_dir", type=str, default=None,
@@ -67,6 +78,7 @@ def parse_args():
     args.max_top_k = args.top_k_list[0]
     
     os.environ["CUDA_VISIBLE_DEVICES"] = args.cuda_devices
+    os.environ["VLLM_RANDOPT_PERTURB_SEED_MODE"] = args.perturb_seed_mode
     random.seed(args.global_seed)
     np.random.seed(args.global_seed)
     torch.manual_seed(args.global_seed)
@@ -293,6 +305,7 @@ def save_results(args, logging_dir, model_saves_dir, base_model_path, handler,
     results = {
         "dataset": args.dataset,
         "model": args.model_name,
+        "perturb_seed_mode": args.perturb_seed_mode,
         "train_samples": args.train_samples,
         "test_samples": args.test_samples,
         "base_train_accuracy": base_train,
@@ -302,6 +315,14 @@ def save_results(args, logging_dir, model_saves_dir, base_model_path, handler,
         "ensemble_results": {str(k): v for k, v in ensemble_results.items()},
         "top_k_perturbs": [(int(s), float(sig)) for s, sig in top_k_perturbs],
         "top_k_train_rewards": [float(r) for r in top_k_rewards],
+        "all_sampled_perturbations": [
+            {"seed": int(seed), "sigma": float(sigma), "train_reward": float(reward)}
+            for (seed, sigma), reward in sorted(
+                perf.items(),
+                key=lambda item: item[1],
+                reverse=True,
+            )
+        ],
     }
     
     with open(f"{logging_dir}/results.json", "w") as f:

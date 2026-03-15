@@ -1,0 +1,14 @@
+\begin{thebibliography}{1}
+
+\bibitem{gan2026thickets}
+Yulu Gan and Phillip Isola.
+\newblock Neural thickets: Diverse task experts are dense around pretrained
+  weights.
+\newblock {\em arXiv preprint arXiv:2603.12228}, 2026.
+
+\bibitem{yang2023spectral}
+Greg Yang, James~B. Simon, and Jeremy Bernstein.
+\newblock A spectral condition for feature learning.
+\newblock {\em arXiv preprint arXiv:2310.17813}, 2023.
+
+\end{thebibliography}

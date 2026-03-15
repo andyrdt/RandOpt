@@ -1,0 +1,14 @@
+\BOOKMARK [1][-]{section.1}{The Paper's Core Claims}{}% 1
+\BOOKMARK [2][-]{subsection.1.1}{How the paper measures these claims}{section.1}% 2
+\BOOKMARK [2][-]{subsection.1.2}{Scope of this note}{section.1}% 3
+\BOOKMARK [1][-]{section.2}{Issue 1: The Perturbation Sampler Does Not Match the Math}{}% 4
+\BOOKMARK [2][-]{subsection.2.1}{The bug}{section.2}% 5
+\BOOKMARK [2][-]{subsection.2.2}{Empirical test}{section.2}% 6
+\BOOKMARK [2][-]{subsection.2.3}{Results}{section.2}% 7
+\BOOKMARK [1][-]{section.3}{Issue 2: Fixed \040Across Model Scales}{}% 8
+\BOOKMARK [2][-]{subsection.3.1}{Log-spaced sigma sweep}{section.3}% 9
+\BOOKMARK [2][-]{subsection.3.2}{Results}{section.3}% 10
+\BOOKMARK [1][-]{section.4}{Issue 3: Parameter Scales Are Not Uniform}{}% 11
+\BOOKMARK [2][-]{subsection.4.1}{Relative-norm perturbation experiment}{section.4}% 12
+\BOOKMARK [1][-]{section.5}{Summary}{}% 13
+\BOOKMARK [1][-]{appendix.A}{What Norm Should Perturbations Be Measured In?}{}% 14

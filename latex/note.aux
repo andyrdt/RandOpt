@@ -1,0 +1,77 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyperFirstAtBeginDocument{\AtBeginDocument}
+\HyperFirstAtBeginDocument{\ifx\hyper@anchor\@undefined
+\global\let\oldcontentsline\contentsline
+\gdef\contentsline#1#2#3#4{\oldcontentsline{#1}{#2}{#3}}
+\global\let\oldnewlabel\newlabel
+\gdef\newlabel#1#2{\newlabelxx{#1}#2}
+\gdef\newlabelxx#1#2#3#4#5#6{\oldnewlabel{#1}{{#2}{#3}}}
+\AtEndDocument{\ifx\hyper@anchor\@undefined
+\let\contentsline\oldcontentsline
+\let\newlabel\oldnewlabel
+\fi}
+\fi}
+\global\let\hyper@last\relax 
+\gdef\HyperFirstAtBeginDocument#1{#1}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{gan2026thickets}
+\@writefile{toc}{\contentsline {section}{\numberline {1}The Paper's Core Claims}{1}{section.1}\protected@file@percent }
+\newlabel{sec:paper}{{1}{1}{The Paper's Core Claims}{section.1}{}}
+\newlabel{eq:density}{{1}{1}{The Paper's Core Claims}{equation.1.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.1}How the paper measures these claims}{1}{subsection.1.1}\protected@file@percent }
+\newlabel{sec:paper_method}{{1.1}{1}{How the paper measures these claims}{subsection.1.1}{}}
+\@writefile{toc}{\contentsline {paragraph}{Density (Claim 1).}{1}{section*.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Diversity (Claim 2).}{1}{section*.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{RandOpt (Claim 3).}{2}{section*.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{}{2}{section*.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.2}Scope of this note}{2}{subsection.1.2}\protected@file@percent }
+\newlabel{sec:scope}{{1.2}{2}{Scope of this note}{subsection.1.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Issue 1: The Perturbation Sampler Does Not Match the Math}{2}{section.2}\protected@file@percent }
+\newlabel{sec:rng}{{2}{2}{Issue 1: The Perturbation Sampler Does Not Match the Math}{section.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}The bug}{2}{subsection.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Impact on effective dimensionality.}{2}{section*.5}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces RandOpt ensemble accuracy on Countdown under the released (correlated) and corrected (isotropic) samplers. $N=40$, mixed $\sigma $, 100 train / 100 test samples. The released sampler is modestly better at 1.5B and 3B, especially at small $K$. At 7B, the corrected sampler is comparable. At no scale does fixing the RNG cause the method to collapse.\relax }}{3}{figure.caption.7}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:rng_ab}{{1}{3}{RandOpt ensemble accuracy on Countdown under the released (correlated) and corrected (isotropic) samplers. $N=40$, mixed $\sigma $, 100 train / 100 test samples. The released sampler is modestly better at 1.5B and 3B, especially at small $K$. At 7B, the corrected sampler is comparable. At no scale does fixing the RNG cause the method to collapse.\relax }{figure.caption.7}{}}
+\@writefile{toc}{\contentsline {paragraph}{What the correct implementation looks like.}{3}{section*.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Empirical test}{3}{subsection.2.2}\protected@file@percent }
+\newlabel{sec:rng_expt}{{2.2}{3}{Empirical test}{subsection.2.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Results}{3}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Caveats.}{3}{section*.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Discussion.}{4}{section*.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Issue 2: Fixed $\sigma $ Across Model Scales}{4}{section.3}\protected@file@percent }
+\newlabel{sec:sigma}{{3}{4}{Issue 2: Fixed $\sigma $ Across Model Scales}{section.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Log-spaced sigma sweep}{4}{subsection.3.1}\protected@file@percent }
+\newlabel{sec:sigma_expt}{{3.1}{4}{Log-spaced sigma sweep}{subsection.3.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Results}{4}{subsection.3.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces $K=1$ test accuracy vs.\ $\sigma $ under the corrected sampler, on the paper's data split (200 train / 2000 test). Each model gets $N=100$ perturbations per $\sigma $. The dashed line marks the paper's $\sigma =0.005$. Our grid brackets this value with $\sigma =0.003$ and $\sigma =0.01$; interpolating, all models appear to be at or near the destructive regime at $\sigma =0.005$. When each model is allowed its own optimal $\sigma $ ($\sim $0.001), peak $K=1$ accuracy scales monotonically with model size.\relax }}{5}{figure.caption.10}\protected@file@percent }
+\newlabel{fig:k1_vs_sigma}{{2}{5}{$K=1$ test accuracy vs.\ $\sigma $ under the corrected sampler, on the paper's data split (200 train / 2000 test). Each model gets $N=100$ perturbations per $\sigma $. The dashed line marks the paper's $\sigma =0.005$. Our grid brackets this value with $\sigma =0.003$ and $\sigma =0.01$; interpolating, all models appear to be at or near the destructive regime at $\sigma =0.005$. When each model is allowed its own optimal $\sigma $ ($\sim $0.001), peak $K=1$ accuracy scales monotonically with model size.\relax }{figure.caption.10}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Issue 3: Parameter Scales Are Not Uniform}{5}{section.4}\protected@file@percent }
+\newlabel{sec:scales}{{4}{5}{Issue 3: Parameter Scales Are Not Uniform}{section.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Hit-rate (fraction of perturbations exceeding base accuracy by at least margin $m$) vs.\ $\sigma $, under the corrected sampler. Left: $m=0$ (any improvement). Center: $m=0.02$. Right: $m=0.05$. At $m=0$, all models show nonzero hit-rates; at stricter margins, larger models generally retain higher hit-rates, though the ordering is not cleanly monotonic at all $\sigma $ values. The curves are noisy at $N=100$.\relax }}{6}{figure.caption.11}\protected@file@percent }
+\newlabel{fig:hitrate_vs_sigma}{{3}{6}{Hit-rate (fraction of perturbations exceeding base accuracy by at least margin $m$) vs.\ $\sigma $, under the corrected sampler. Left: $m=0$ (any improvement). Center: $m=0.02$. Right: $m=0.05$. At $m=0$, all models show nonzero hit-rates; at stricter margins, larger models generally retain higher hit-rates, though the ordering is not cleanly monotonic at all $\sigma $ values. The curves are noisy at $N=100$.\relax }{figure.caption.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Relative-norm perturbation experiment}{6}{subsection.4.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Weighted mean parameter std by component type across model scales. Embedding, attention, MLP, and unembedding weights all cluster in the $\sim $0.01--0.03 range; norm layers are 10--30$\times $ larger. The dotted line marks $\sigma =0.005$: under the paper's perturbation scheme, weight matrices receive a 20--30\% relative perturbation while norms receive $<$1\%. For 0.5B--3B (tied embeddings), unembedding std equals embedding std; 7B and 32B have separate unembedding matrices. Note that 7B has the smallest weight matrix stds, meaning the same $\sigma $ is relatively more disruptive there.\relax }}{7}{figure.caption.12}\protected@file@percent }
+\newlabel{fig:weight_scales}{{4}{7}{Weighted mean parameter std by component type across model scales. Embedding, attention, MLP, and unembedding weights all cluster in the $\sim $0.01--0.03 range; norm layers are 10--30$\times $ larger. The dotted line marks $\sigma =0.005$: under the paper's perturbation scheme, weight matrices receive a 20--30\% relative perturbation while norms receive $<$1\%. For 0.5B--3B (tied embeddings), unembedding std equals embedding std; 7B and 32B have separate unembedding matrices. Note that 7B has the smallest weight matrix stds, meaning the same $\sigma $ is relatively more disruptive there.\relax }{figure.caption.12}{}}
+\@writefile{toc}{\contentsline {paragraph}{A note on norm layers.}{7}{section*.15}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}Summary}{7}{section.5}\protected@file@percent }
+\bibstyle{plain}
+\bibdata{references}
+\bibcite{gan2026thickets}{1}
+\bibcite{yang2023spectral}{2}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Per-layer parameter std by component type across the Qwen-2.5 family. Attention and MLP weights are nearly flat across layers (std $\sim $0.01--0.03), while norm layers vary by over an order of magnitude and show pronounced structure---particularly in early and late layers. The dotted line marks $\sigma =0.005$. At every layer and every scale, norm stds sit 1--2 orders of magnitude above weight matrix stds, reinforcing the observation that a fixed absolute $\sigma $ perturbs these component families very differently.\relax }}{8}{figure.caption.13}\protected@file@percent }
+\newlabel{fig:weight_layers}{{5}{8}{Per-layer parameter std by component type across the Qwen-2.5 family. Attention and MLP weights are nearly flat across layers (std $\sim $0.01--0.03), while norm layers vary by over an order of magnitude and show pronounced structure---particularly in early and late layers. The dotted line marks $\sigma =0.005$. At every layer and every scale, norm stds sit 1--2 orders of magnitude above weight matrix stds, reinforcing the observation that a fixed absolute $\sigma $ perturbs these component families very differently.\relax }{figure.caption.13}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Best ensemble accuracy (left) and mean reward delta (right) under absolute vs.\ relative-norm perturbations, each at its respective optimal $\sigma $. The two perturbation families produce very similar results at each scale.\relax }}{8}{figure.caption.14}\protected@file@percent }
+\newlabel{fig:phase3}{{6}{8}{Best ensemble accuracy (left) and mean reward delta (right) under absolute vs.\ relative-norm perturbations, each at its respective optimal $\sigma $. The two perturbation families produce very similar results at each scale.\relax }{figure.caption.14}{}}
+\@writefile{toc}{\contentsline {paragraph}{Limitations.}{8}{section*.17}\protected@file@percent }
+\citation{yang2023spectral}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Status of the paper's core claims after our investigation.\relax }}{9}{table.caption.16}\protected@file@percent }
+\newlabel{tab:summary}{{1}{9}{Status of the paper's core claims after our investigation.\relax }{table.caption.16}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {A}What Norm Should Perturbations Be Measured In?}{9}{appendix.A}\protected@file@percent }
+\newlabel{app:norms}{{A}{9}{What Norm Should Perturbations Be Measured In?}{appendix.A}{}}
+\@writefile{toc}{\contentsline {paragraph}{A single-matrix toy model.}{9}{section*.19}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Connection to $\mu $P.}{9}{section*.20}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{For a full transformer.}{9}{section*.21}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Caveats.}{10}{section*.22}\protected@file@percent }

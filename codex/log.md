@@ -77,3 +77,553 @@
 - Preliminary interpretation:
   - under the fixed RNG sampler, very large sigma (`0.004`) is clearly too destructive
   - smaller sigma (`0.00025` to `0.0005`) looks stronger than the paper-style `0.001` or `0.002` on this slice
+- Started the Phase 1 protocol-locking batch with the unified mixed-sigma setup:
+  - task: `countdown`
+  - split: `train_samples=100`, `test_samples=100`
+  - population: `N=40`
+  - sigma grid: `0.0005,0.001,0.002,0.003,0.005`
+  - top-`K` ratios: `0.025,0.05,0.1`
+  - global seed: `42`
+- Launched three concurrent 1-GPU jobs only on the confirmed free GPUs at launch time:
+  - GPU `4`: `Qwen/Qwen2.5-3B-Instruct` with `per_parameter`
+  - GPU `6`: `Qwen/Qwen2.5-3B-Instruct` with `global_stream`
+  - GPU `7`: `Qwen/Qwen2.5-0.5B-Instruct` with `per_parameter`
+- Initial monitoring status for the active batch:
+  - all three jobs initialized cleanly
+  - `0.5B / per_parameter` advanced first and completed perturbation sampling
+  - the `0.5B / per_parameter` run selected a best mixed-population sigma bucket of `0.0005` by mean sampled reward
+  - the two `3B` jobs were still in the long generation phase at the same inspection point
+- Completed Phase 1 protocol-locking results for the `3B` pair on the unified mixed-sigma setup (`100/100`, `N=40`):
+  - released sampler: `codex/experiments/countdown_20260313_234612/`
+    - base test: `15.41%`
+    - best sigma bucket by mean reward: `0.002`
+    - `K=1 -> 15.0%`
+    - `K=2 -> 25.0%`
+    - `K=4 -> 32.0%`
+  - fixed RNG sampler: `codex/experiments/countdown_20260313_234617/`
+    - base test: `15.41%`
+    - best sigma bucket by mean reward: `0.001`
+    - `K=1 -> 13.0%`
+    - `K=2 -> 21.0%`
+    - `K=4 -> 27.0%`
+- Updated interpretation after the larger `3B` run:
+  - the seed bug still does not destroy the method
+  - on this larger mixed-sigma slice, the released sampler outperforms the fixed RNG sampler at every tested `K`
+  - the fixed RNG sampler also shifts the best-performing sigma bucket downward from `0.002` to `0.001`
+- Completed the `0.5B / per_parameter` side of the same protocol:
+  - result directory: `codex/experiments/countdown_20260313_234717/`
+  - base test: `4.40%`
+  - ensemble accuracies: `K=1 -> 0.0%`, `K=2 -> 0.0%`, `K=4 -> 0.0%`
+  - best sigma bucket by mean reward: `0.0005`
+- Continued the cross-scale queue using only GPUs that were free at each launch check:
+  - GPU `7`: launched `Qwen/Qwen2.5-0.5B-Instruct` with `global_stream`
+  - GPU `6`: launched `Qwen/Qwen2.5-7B-Instruct` with `per_parameter`
+  - GPU `4`: launched `Qwen/Qwen2.5-7B-Instruct` with `global_stream`
+- Completed the `0.5B / global_stream` companion run:
+  - result directory: `codex/experiments/countdown_20260313_235551/`
+  - base test: `4.40%`
+  - best sigma bucket by mean reward: `0.0005`
+  - ensemble accuracies:
+    - `K=1 -> 0.0%`
+    - `K=2 -> 0.0%`
+    - `K=4 -> 2.0%`
+- Interpretation for the completed `0.5B` pair:
+  - both samplers are weak at this scale on the current `countdown` slice
+  - the fixed RNG sampler slightly recovers `K=4` relative to the released sampler (`2%` vs `0%`)
+  - the seed bug still matters less than overall model weakness at `0.5B`
+- Added compact analysis tooling under `codex/`:
+  - `codex/analyze_results.py` writes:
+    - `codex/analysis/run_summary.csv`
+    - `codex/analysis/sigma_summary.csv`
+    - `codex/analysis/sample_summary.csv`
+  - `codex/plot_phase1.py` renders current Phase 1 figures into `codex/figures/`
+- Continued filling free GPUs dynamically:
+  - after GPU `7` freed, launched `Qwen/Qwen2.5-1.5B-Instruct` with `per_parameter`
+  - at this point the active jobs were:
+    - GPU `4`: `Qwen/Qwen2.5-7B-Instruct` with `global_stream`
+    - GPU `6`: `Qwen/Qwen2.5-7B-Instruct` with `per_parameter`
+    - GPU `7`: `Qwen/Qwen2.5-1.5B-Instruct` with `per_parameter`
+- Completed the `7B / per_parameter` run:
+  - result directory: `codex/experiments/countdown_20260313_235647/`
+  - base test: `36.16%`
+  - best sigma bucket by mean reward: `0.0005`
+  - ensemble accuracies:
+    - `K=1 -> 34.0%`
+    - `K=2 -> 45.0%`
+    - `K=4 -> 53.0%`
+- Intermediate interpretation at `7B`:
+  - the released sampler yields a much stronger perturbation landscape than at smaller scales
+  - the top-`K` ensemble gain over base is substantial at `K=2` and `K=4`
+- After GPU `6` freed, launched the last missing Phase 1 run:
+  - GPU `6`: `Qwen/Qwen2.5-1.5B-Instruct` with `global_stream`
+- Active runs after that launch:
+  - GPU `4`: `Qwen/Qwen2.5-7B-Instruct` with `global_stream`
+  - GPU `6`: `Qwen/Qwen2.5-1.5B-Instruct` with `global_stream`
+  - GPU `7`: `Qwen/Qwen2.5-1.5B-Instruct` with `per_parameter`
+- Completed the `1.5B / per_parameter` run:
+  - result directory: `codex/experiments/countdown_20260314_000312/`
+  - base test: `5.94%`
+  - best sigma bucket by mean reward: `0.003`
+  - ensemble accuracies:
+    - `K=1 -> 10.0%`
+    - `K=2 -> 11.0%`
+    - `K=4 -> 15.0%`
+- Completed the `7B / global_stream` run:
+  - result directory: `codex/experiments/countdown_20260313_235746/`
+  - base test: `36.16%`
+  - best sigma bucket by mean reward: `0.0005`
+  - ensemble accuracies:
+    - `K=1 -> 38.0%`
+    - `K=2 -> 46.0%`
+    - `K=4 -> 51.0%`
+- Intermediate comparison at `7B`:
+  - released sampler: `K=1 34%`, `K=2 45%`, `K=4 53%`
+  - fixed RNG sampler: `K=1 38%`, `K=2 46%`, `K=4 51%`
+  - so at `7B`, the fixed RNG sampler improves top-1 and slightly improves `K=2`, while the released sampler still holds a small edge at `K=4`
+- Intermediate comparison at `1.5B` so far:
+  - released sampler clearly improves over base (`5.94% -> 15.0%` at `K=4`)
+  - the fixed RNG companion run is the last remaining Phase 1 cell to finish
+- Completed the `1.5B / global_stream` run:
+  - result directory: `codex/experiments/countdown_20260314_001149/`
+  - base test: `5.94%`
+  - best sigma bucket by mean reward: `0.001`
+  - ensemble accuracies:
+    - `K=1 -> 3.0%`
+    - `K=2 -> 5.0%`
+    - `K=4 -> 14.0%`
+- Phase 1 status:
+  - the full cross-scale mixed-sigma sweep is now complete for:
+    - `0.5B`
+    - `1.5B`
+    - `3B`
+    - `7B`
+  - both sampler modes are covered for each of those model sizes
+- High-level Phase 1 pattern:
+  - `0.5B`: both samplers are weak
+  - `1.5B`: released sampler is clearly better than fixed RNG at `K=1` and `K=2`, with similar `K=4`
+  - `3B`: released sampler is better at all tested `K`
+  - `7B`: fixed RNG is slightly better at `K=1` and `K=2`, while released remains slightly better at `K=4`
+  - the seed-bug effect is real, but it is not a uniform “method collapses” story
+- Launched Phase 2 fixed-RNG per-sigma runs using only the GPUs that were free at launch time:
+  - GPU `4`: `Qwen/Qwen2.5-7B-Instruct`
+  - GPU `6`: `Qwen/Qwen2.5-3B-Instruct`
+  - GPU `7`: `Qwen/Qwen2.5-1.5B-Instruct`
+- Phase 2 launch configuration:
+  - sampler: `global_stream`
+  - perturbation scale mode: `absolute`
+  - task: `countdown`
+  - split: `train_samples=100`, `test_samples=100`
+  - population: `N=200`
+  - sigma sweep per model: `0.0005`, `0.001`, `0.002`, `0.003`, `0.005`
+  - each model is running as a sequential single-GPU loop, one sigma at a time
+- Phase 3 prep completed while Phase 2 was in flight:
+  - unified the helper-path support for `perturb_scale_mode`
+  - updated `codex/analyze_results.py` so single-sigma Phase 2 runs summarize cleanly
+  - added a dedicated Phase 2 plotting script
+  - switched the planned weight-scale diagnostic to a GPU-only path after deciding not to use CPU-side model analysis
+- Added Phase 3 launch helpers under `codex/`:
+  - `codex/run_weight_scale_diagnostic.sh`
+  - `codex/run_phase3_relative_norm.sh`
+- First higher-`N` Phase 2 results completed cleanly:
+  - `Qwen/Qwen2.5-1.5B-Instruct`, `global_stream`, absolute noise, `sigma=0.0005`, `N=200`
+    - result directory: `codex/experiments/countdown_20260314_092355/`
+    - mean sampled train reward: `0.0814`
+    - hit-rate above base train: `0.19`
+    - ensemble accuracies: `K=5 -> 19.0%`, `K=10 -> 26.0%`, `K=20 -> 28.0%`
+  - `Qwen/Qwen2.5-3B-Instruct`, `global_stream`, absolute noise, `sigma=0.0005`, `N=200`
+    - result directory: `codex/experiments/countdown_20260314_092353/`
+    - mean sampled train reward: `0.1394`
+    - hit-rate above base train: `0.80`
+    - ensemble accuracies: `K=5 -> 22.0%`, `K=10 -> 36.0%`, `K=20 -> 49.0%`
+- Monitoring state after those completions:
+  - the `1.5B` and `3B` loops rolled directly into `sigma=0.001`
+  - the `7B @ 0.0005` run was still active at the same inspection point
+- Completed the `Qwen/Qwen2.5-7B-Instruct`, `global_stream`, absolute-noise, `sigma=0.0005`, `N=200` Phase 2 run:
+  - result directory: `codex/experiments/countdown_20260314_092348/`
+  - base train: `0.4210`
+  - base test: `36.16%`
+  - mean sampled train reward: `0.4123`
+  - ensemble accuracies:
+    - `K=5 -> 51.0%`
+    - `K=10 -> 55.0%`
+    - `K=20 -> 60.0%`
+- Immediate Phase 2 reading at `sigma=0.0005`:
+  - `1.5B` improves strongly in ensemble accuracy despite negative mean reward delta relative to base train
+  - `3B` shows both strong mean reward gain and strong ensemble lift
+  - `7B` remains very strong in ensemble accuracy even though mean sampled train reward stays slightly below the very strong base-train score
+  - this reinforces the distinction between:
+    - density measured by `reward > base train`
+    - practical top-`K` / ensemble usefulness
+- Monitoring state after the `7B @ 0.0005` completion:
+  - GPU `4` rolled directly into `sigma=0.001`
+  - GPUs `6` and `7` were already in their own `sigma=0.001` runs
+  - no GPU had freed for Phase 3 yet
+- Completed the `Qwen/Qwen2.5-1.5B-Instruct`, `global_stream`, absolute-noise, `sigma=0.001`, `N=200` Phase 2 run:
+  - result directory: `codex/experiments/countdown_20260314_100101/`
+  - mean sampled train reward: `0.0827`
+  - ensemble accuracies:
+    - `K=5 -> 21.0%`
+    - `K=10 -> 27.0%`
+    - `K=20 -> 32.0%`
+- Local reading for `1.5B` so far under the fixed RNG sampler:
+  - `sigma=0.001` is better than `sigma=0.0005` on ensemble accuracy
+  - both productive values are still in the low end of the absolute-noise grid
+  - this is consistent with the broader concern that smaller models may want smaller absolute perturbations
+- Added an explicit follow-up note to the plan:
+  - after the current Phase 2 batch, revisit the small-model regime with smaller absolute sigmas
+  - initial additional values to test: `0.000125` and `0.00025`
+  - prioritize `0.5B` and `1.5B`
+- Completed the `Qwen/Qwen2.5-3B-Instruct`, `global_stream`, absolute-noise, `sigma=0.001`, `N=200` Phase 2 run:
+  - result directory: `codex/experiments/countdown_20260314_100951/`
+  - mean sampled train reward: `0.1453`
+  - ensemble accuracies:
+    - `K=5 -> 37.0%`
+    - `K=10 -> 45.0%`
+    - `K=20 -> 48.0%`
+- Local reading for `3B` so far under the fixed RNG sampler:
+  - `sigma=0.0005` and `sigma=0.001` are both productive
+  - the useful regime is still concentrated in the low end of the absolute-noise grid
+  - nothing seen so far suggests that larger absolute sigma will be needed for the corrected sampler at `3B`
+- The long-running Phase 2 / Phase 3 shells were interrupted by a user-aborted turn.
+- After that interruption, norm analysis was explicitly reprioritized.
+- Completed a fresh weight-scale / norm-analysis pass for:
+  - `Qwen/Qwen2.5-0.5B-Instruct`
+  - `Qwen/Qwen2.5-1.5B-Instruct`
+  - `Qwen/Qwen2.5-3B-Instruct`
+  - `Qwen/Qwen2.5-7B-Instruct`
+  - `Qwen/Qwen2.5-32B-Instruct`
+- Norm-analysis artifacts:
+  - core summaries: `codex/analysis/weight_scale_core/`
+  - `32B` summaries: `codex/analysis/weight_scale_32b/`
+  - merged summaries: `codex/analysis/weight_scale_all/`
+  - merged figures: `codex/figures/weight_scale_all/`
+- Diagnostic direction after discussion:
+  - include all named parameters that the paper perturbs
+  - allow multiple scale metrics rather than forcing one
+  - keep norms visible rather than excluding them
+  - use log y-axis for scale plots
+- After the norm-analysis reprioritization completed, resumed the core experiment plan on the newly free GPUs:
+  - GPU `6`: restarted the missing `Qwen/Qwen2.5-3B-Instruct` Phase 2 cell at `sigma=0.005`
+  - GPU `4`: restarted the missing `Qwen/Qwen2.5-7B-Instruct` Phase 2 cells at `sigma=0.003` and `sigma=0.005`
+  - GPU `7`: restarted Phase 3 `Qwen/Qwen2.5-1.5B-Instruct`
+- Phase 3 adaptation note:
+  - the initial relative-noise grid `0.05, 0.1, 0.2, 0.5` was too large for `1.5B` when all named params were perturbed
+  - after seeing sustained near-zero train rewards at `sigma=0.05`, aborted that oversized sweep
+  - narrowed the Phase 3 grid to:
+    - `0.0025`
+    - `0.005`
+    - `0.01`
+    - `0.02`
+  - restarted `1.5B` Phase 3 on that narrower grid
+- Current execution status after the restart batch:
+  - all three resumed runs are still active
+  - no new `results.json` files have landed yet from the restarted directories
+  - newest experiment directories currently only contain `args.json` and `model_saves/`, which is expected mid-run
+- Active monitoring snapshot:
+  - `Qwen/Qwen2.5-3B-Instruct`, Phase 2, `global_stream`, absolute noise, `sigma=0.005`, GPU `6`
+    - log tail currently shows batch progress around `121/200`
+  - `Qwen/Qwen2.5-7B-Instruct`, Phase 2, `global_stream`, absolute noise, GPU `4`
+    - log tail shows the `sigma=0.003` stage in active model-load / generation state
+    - the same shell will roll into `sigma=0.005` after that cell completes
+  - `Qwen/Qwen2.5-1.5B-Instruct`, Phase 3, `global_stream`, `tensor_std`, narrowed sigma grid starting at `0.0025`, GPU `7`
+    - log tail currently shows healthy nonzero train rewards around `118/200`
+- GPU check at the same inspection point:
+  - GPU `4`: active and heavily utilized by the `7B` Phase 2 shell
+  - GPU `6`: active and heavily utilized by the `3B` Phase 2 shell
+  - GPU `7`: active and heavily utilized by the `1.5B` Phase 3 shell
+  - no new launch should happen until one of those three GPUs frees
+- Additional GPU availability check:
+  - GPU `5` later appeared genuinely idle:
+    - `17 MiB` resident
+    - `0%` utilization
+    - no compute process reported by `nvidia-smi --query-compute-apps`
+  - this is safe to use without touching another user's work
+- Action from that free GPU:
+  - use GPU `5` for the already-planned `0.5B` small-sigma Phase 2 extension instead of leaving it idle
+  - extension grid:
+    - `0.000125`
+    - `0.00025`
+    - `0.0005`
+    - `0.001`
+    - `0.002`
+    - `0.003`
+    - `0.005`
+- Launched the `0.5B` small-sigma Phase 2 extension on the newly free GPU:
+  - GPU `5`
+  - model: `Qwen/Qwen2.5-0.5B-Instruct`
+  - sampler: `global_stream`
+  - scale mode: absolute
+  - sigma loop:
+    - `0.000125`
+    - `0.00025`
+    - `0.0005`
+    - `0.001`
+    - `0.002`
+    - `0.003`
+    - `0.005`
+  - the first `0.000125` cell started cleanly and entered active model-load / generation state
+- Completed the first narrowed Phase 3 relative-noise result:
+  - result directory: `codex/experiments/countdown_20260314_132526/`
+  - model: `Qwen/Qwen2.5-1.5B-Instruct`
+  - sampler: `global_stream`
+  - scale mode: `tensor_std`
+  - sigma: `0.0025`
+  - base test: `5.94%`
+  - mean sampled train reward: `0.0835`
+  - ensemble accuracies:
+    - `K=5 -> 25.0%`
+    - `K=10 -> 29.0%`
+    - `K=20 -> 31.0%`
+- Immediate Phase 3 reading from that first `1.5B` narrowed run:
+  - the restarted tensor-std schedule is clearly in a productive regime
+  - `sigma=0.0025` is not catastrophic the way `0.05` was
+  - relative-noise perturbations at this smaller scale already produce strong ensemble lift over the base model on `1.5B`
+- Refined the weight-scale plotting stack while the GPUs were busy:
+  - `codex/plot_weight_scales.py` now writes:
+    - `weight_layer_metric_summary.csv`
+    - `weight_component_metric_summary.csv`
+  - and now produces multiple figure views instead of a single summary:
+    - `phase3_weight_scale_by_layer_std.png`
+    - `phase3_weight_scale_by_layer_rms.png`
+    - `phase3_weight_scale_by_layer_fro_norm.png`
+    - `phase3_weight_scale_component_std.png`
+  - this is meant to align better with the discussion about:
+    - per-tensor std as the simplest local scale
+    - RMS as per-element scale
+    - Frobenius norm as whole-matrix scale
+    - keeping all named parameter groups visible in the compact summaries
+- Completed the remaining `3B` absolute-noise Phase 2 cell:
+  - result directory: `codex/experiments/countdown_20260314_132529/`
+  - model: `Qwen/Qwen2.5-3B-Instruct`
+  - sampler: `global_stream`
+  - scale mode: absolute
+  - sigma: `0.005`
+  - mean sampled train reward: `0.0149`
+  - ensemble accuracies:
+    - `K=5 -> 2.0%`
+    - `K=10 -> 2.0%`
+    - `K=20 -> 3.0%`
+- Immediate reading from that `3B @ 0.005` result:
+  - `0.005` is clearly too large for `3B` under the corrected sampler
+  - this cleanly reinforces the Phase 2 picture that the productive absolute-noise regime for `3B` is much closer to `0.0005` - `0.001`
+- GPU handoff after that completion:
+  - GPU `6` freed cleanly
+  - immediately launched Phase 3 `Qwen/Qwen2.5-3B-Instruct` there using the narrowed tensor-std grid:
+    - `0.0025`
+    - `0.005`
+    - `0.01`
+    - `0.02`
+- Operational note:
+  - the Phase 3 logs for the later launches are much quieter than the earlier `1.5B @ 0.0025` run because Python stdout is being buffered more aggressively than expected
+  - updated `codex/run_phase3_relative_norm.sh` to use `python -u` for all future launches so the remaining handoffs are easier to monitor live
+- Completed the first `0.5B` small-sigma Phase 2 extension cell:
+  - result directory: `codex/experiments/countdown_20260314_135851/`
+  - model: `Qwen/Qwen2.5-0.5B-Instruct`
+  - sampler: `global_stream`
+  - scale mode: absolute
+  - sigma: `0.000125`
+  - base test: `4.40%`
+  - mean sampled train reward: `0.0417`
+  - ensemble accuracies:
+    - `K=5 -> 0.0%`
+    - `K=10 -> 0.0%`
+    - `K=20 -> 0.0%`
+- Immediate reading from `0.5B @ 0.000125`:
+  - this value is too small to rescue the `0.5B` model
+  - the "maybe the smallest model only wants much smaller sigma" idea is not completely wrong, but the first extra point shows there is still a real small-model weakness here
+- GPU `5` handoff after that completion:
+  - the `0.5B` loop rolled directly into the next extension cell at `sigma=0.00025`
+- Completed the next `0.5B` small-sigma Phase 2 extension cell:
+  - result directory: `codex/experiments/countdown_20260314_142427/`
+  - model: `Qwen/Qwen2.5-0.5B-Instruct`
+  - sampler: `global_stream`
+  - scale mode: absolute
+  - sigma: `0.00025`
+  - mean sampled train reward: `0.0355`
+  - ensemble accuracies:
+    - `K=5 -> 0.0%`
+    - `K=10 -> 0.0%`
+    - `K=20 -> 0.0%`
+- Immediate reading from `0.5B @ 0.00025`:
+  - this is also non-productive
+  - the first two extra low-sigma points both fail to recover useful perturbations for `0.5B`
+- Current GPU `5` handoff:
+  - the old `0.5B` loop has already rolled into `sigma=0.0005`
+  - under the updated priority, this active cell can finish, but the next launches should go to the log-spaced density sweep rather than continuing lower-priority loop tails
+- Priority-alignment cleanup:
+  - added lightweight watcher shells that will stop the lower-priority loop drivers after the current active cell exits:
+    - `0.5B` extension loop on GPU `5`
+    - `1.5B` Phase 3 loop on GPU `7`
+    - `3B` Phase 3 loop on GPU `6`
+  - this preserves the active cell while preventing those older loops from automatically consuming the next sigma slot
+- New queued priority after the current in-flight jobs:
+  - run a log-spaced fixed-RNG absolute-noise sweep aimed at the density claim directly
+  - target metric:
+    - hit-rate above base-train accuracy
+  - planned grid:
+    - `0.00001`
+    - `0.00003`
+    - `0.0001`
+    - `0.0003`
+    - `0.001`
+    - `0.003`
+    - `0.01`
+  - planned models:
+    - `0.5B`
+    - `1.5B`
+    - `3B`
+    - `7B`
+  - rationale:
+    - this is a cleaner direct test of "where is the density peak?" than continuing to focus only on a few hand-picked sigmas
+    - it should tell us whether the maximum hit-rate itself scales with model size after proper sigma tuning
+  - execution policy:
+    - do not interrupt the runs already in flight
+    - queue this batch next
+  - updated protocol choice:
+    - use the paper split on `Countdown`
+    - `train_samples=200`
+    - `test_samples=2000`
+    - keep `K` minimal (`K=1` via `top_k_ratios=0.01`) because the primary output is still hit-rate
+  - implementation status:
+    - added `codex/run_density_hitrate_sweep.sh`
+    - added `codex/plot_density_hitrate.py`
+- Completed the `7B` Phase 2 cell at `sigma=0.003`:
+  - result directory: `codex/experiments/countdown_20260314_132522/`
+  - model: `Qwen/Qwen2.5-7B-Instruct`
+  - sampler: `global_stream`
+  - scale mode: absolute
+  - sigma: `0.003`
+  - mean sampled train reward: `0.1838`
+  - ensemble accuracies:
+    - `K=5 -> 49.0%`
+    - `K=10 -> 53.0%`
+    - `K=20 -> 58.0%`
+- Immediate reading from `7B @ 0.003`:
+  - `0.003` is weaker than the smaller `0.0005` and `0.001` regime, but it is still far from catastrophic at `7B`
+  - this continues the pattern that larger models tolerate larger absolute sigma better than smaller ones, even though the best regime still sits below the paper's `0.005`
+- Completed the `1.5B` Phase 3 cell at `tensor_std sigma=0.005`:
+  - result directory: `codex/experiments/countdown_20260314_140229/`
+  - model: `Qwen/Qwen2.5-1.5B-Instruct`
+  - sampler: `global_stream`
+  - scale mode: `tensor_std`
+  - sigma: `0.005`
+  - mean sampled train reward: `0.0844`
+  - ensemble accuracies:
+    - `K=5 -> 25.0%`
+    - `K=10 -> 27.0%`
+    - `K=20 -> 27.0%`
+- Immediate reading from `1.5B @ tensor_std 0.005`:
+  - the relative-noise schedule remains productive at `0.005`
+  - compared with `0.0025`, the train reward is similar while `K=20` is slightly worse, so the optimum may still be in the low end of the narrowed tensor-std range
+- Current active handoffs after those completions:
+  - GPU `4` rolled into the remaining `7B` absolute-noise cell at `sigma=0.005`
+  - GPU `7` rolled into the next `1.5B` relative-noise cell at `sigma=0.01`
+- Updated execution policy after the density-sweep reprioritization:
+  - let the currently active cells finish
+  - after that, prefer launching the log-spaced density sweep rather than continuing lower-priority loop tails
+- Completed the first `3B` Phase 3 cell:
+  - result directory: `codex/experiments/countdown_20260314_141307/`
+  - model: `Qwen/Qwen2.5-3B-Instruct`
+  - sampler: `global_stream`
+  - scale mode: `tensor_std`
+  - sigma: `0.0025`
+  - mean sampled train reward: `0.1334`
+  - ensemble accuracies:
+    - `K=5 -> 35.0%`
+    - `K=10 -> 41.0%`
+    - `K=20 -> 44.0%`
+- Immediate reading from `3B @ tensor_std 0.0025`:
+  - the relative-noise regime is productive at `3B`
+  - this first point already looks competitive with the stronger absolute-noise settings
+- Watcher follow-up:
+  - the original stop-after-current watcher for the `3B` Phase 3 loop lost a race and the shell had already started `sigma=0.005`
+  - installed a new watcher against the current `3B @ 0.005` child so the loop still stops at the next clean boundary
+- Automated density-sweep handoff:
+  - installed per-GPU watcher shells that will:
+    - wait for the currently active cell to exit
+    - kill the stale loop parent for that GPU
+    - immediately launch the paper-split density sweep for the same model on the same GPU
+  - current mapping:
+    - GPU `5` -> `0.5B`
+    - GPU `7` -> `1.5B`
+    - GPU `6` -> `3B`
+    - GPU `4` -> `7B`
+  - this should let the queued density batch start as each GPU frees without another manual launch step
+- Completed the next `0.5B` extension cell:
+  - result directory: `codex/experiments/countdown_20260314_144937/`
+  - sigma: `0.0005`
+  - mean sampled train reward: `0.0279`
+  - ensemble accuracies remain `0%` for `K=5`, `K=10`, and `K=20`
+- Immediate reading from `0.5B @ 0.0005`:
+  - three consecutive low-sigma values now fail to recover useful perturbations for `0.5B`
+  - this makes the "small-model weakness is only a sigma-grid artifact" story look increasingly unlikely
+- Handoff race note for GPU `5`:
+  - before the first handoff watcher could take over, the old `0.5B` extension loop had already started `sigma=0.001`
+  - attached a new watcher directly to that active `0.001` child so the density sweep should start on GPU `5` after it exits
+- Completed the `1.5B` Phase 3 cell at `tensor_std sigma=0.01`:
+  - result directory: `codex/experiments/countdown_20260314_143811/`
+  - mean sampled train reward: `0.0275`
+  - ensemble accuracies:
+    - `K=5 -> 17.0%`
+    - `K=10 -> 19.0%`
+    - `K=20 -> 10.0%`
+- Immediate reading from `1.5B @ tensor_std 0.01`:
+  - `0.01` is clearly worse than `0.0025` and `0.005`
+  - the productive relative-noise regime for `1.5B` is therefore firmly in the lower half of the narrowed grid
+- Handoff race note for GPU `7`:
+  - the first density watcher lost the race and the old Phase 3 shell immediately spawned its last configured cell at `sigma=0.02`
+  - attached a new watcher directly to that final `1.5B @ 0.02` child so the density sweep should start on GPU `7` as soon as it exits
+- Refined the weight-scale analysis to match the actual perturbation granularity in the code:
+  - `codex/plot_weight_scales.py` now emits family-level summaries and plots for exact named-parameter families rather than only coarse components
+  - added:
+    - `codex/analysis/weight_scale_all/weight_family_metric_summary.csv`
+    - `codex/analysis/weight_scale_all/weight_family_layer_metric_summary.csv`
+    - `codex/figures/weight_scale_all/phase3_weight_scale_attention_family_by_layer_std.png`
+    - `codex/figures/weight_scale_all/phase3_weight_scale_attention_family_by_model_std.png`
+    - `codex/figures/weight_scale_all/phase3_weight_scale_block_family_by_layer_std.png`
+    - `codex/figures/weight_scale_all/phase3_weight_scale_block_family_by_model_std.png`
+    - `codex/figures/weight_scale_all/phase3_weight_scale_shared_family_by_model_std.png`
+- Immediate reading from the family-level scale diagnostics:
+  - the biggest raw-scale distortions are concentrated in specific families, not uniformly across "attention" as a whole
+  - `k_proj.bias` is the most extreme family by far, with very large early-layer outliers:
+    - `1.5B layer 0`: `std 68.87`
+    - `7B layer 27`: `std 40.64`
+    - `0.5B layer 0`: `std 32.34`
+  - `q_proj.bias` is also large across scales, but much less extreme than `k_proj.bias`
+  - ordinary projection weights are far smaller and much tighter:
+    - `q_proj.weight`, `k_proj.weight`, `v_proj.weight`, `o_proj.weight` mostly live in the `~0.016-0.03` median-std range depending on model size
+  - norm weights are also much larger per entry than ordinary projection weights:
+    - `input_layernorm.weight` median std ranges from roughly `0.18` to `0.64`
+    - `post_attention_layernorm.weight` median std ranges from roughly `0.14` to `0.42`
+  - embeddings / lm-head weights are small per entry but huge in Frobenius norm due to tensor size
+- Practical implication:
+  - the paper's absolute-noise scheme is not just mixing "attention vs MLP"
+  - it is applying the same absolute sigma across families with radically different per-entry scales, especially:
+    - attention biases
+    - norm weights
+    - ordinary projection / MLP weights
+- Completed the paper-split density sweep across all four target models:
+  - `0.5B`, `1.5B`, `3B`, and `7B` all finished the `1e-5` to `1e-2` absolute-noise grid on the `200/2000` split
+  - practical `K=1` peaks from that sweep:
+    - `0.5B -> 0.1%` at `sigma=0.001`
+    - `1.5B -> 12.5%` at `sigma=0.001`
+    - `3B -> 16.85%` at `sigma=0.003`
+    - `7B -> 39.25%` at `sigma=0.001`
+  - `sigma=0.01` is destructive for all four models
+- Regenerated Phase 2 density figures from the completed sample-level data:
+  - `codex/figures/density_hit_rate_vs_sigma.png`
+  - `codex/figures/density_hit_rate_vs_sigma_absolute_margins.png`
+  - `codex/figures/density_hit_rate_vs_sigma_relative_margins.png`
+  - `codex/figures/density_k1_accuracy_vs_sigma.png`
+- Completed the missing `7B` Phase 3 relative-noise sweep:
+  - `sigma=0.0025`: `K=20 -> 54%`
+  - `sigma=0.005`: `K=20 -> 60%`
+  - `sigma=0.01`: `K=20 -> 66%`
+  - `sigma=0.02`: `K=20 -> 61%`
+  - on this narrowed tensor-std grid, `7B` peaks at `sigma=0.01`
+- Refreshed the compact summaries and Phase 3 figures after the completed `7B` run:
+  - `codex/analysis/run_summary.csv`
+  - `codex/analysis/sigma_summary.csv`
+  - `codex/analysis/sample_summary.csv`
+  - `codex/figures/phase3_relative_sigma_sensitivity.png`
+  - `codex/figures/phase3_best_family_comparison.png`

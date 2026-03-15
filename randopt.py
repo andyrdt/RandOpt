@@ -65,10 +65,30 @@ def parse_args():
             "generator stream across all tensors."
         ),
     )
+    parser.add_argument(
+        "--perturb_scale_mode",
+        type=str,
+        choices=["absolute", "tensor_std"],
+        default="absolute",
+        help=(
+            "How perturbation magnitude is scaled. 'absolute' uses raw-coordinate "
+            "sigma; 'tensor_std' scales each tensor by its base-weight standard deviation."
+        ),
+    )
     parser.add_argument("--global_seed", type=int, default=42)
     parser.add_argument("--experiment_dir", type=str, default="es-experiment")
     parser.add_argument("--resume_dir", type=str, default=None,
                         help="Resume from a previous run directory (skips sampling, goes directly to ensemble eval)")
+    parser.add_argument(
+        "--skip_base_test_eval",
+        action="store_true",
+        help="Skip base-model test-set evaluation. Useful for train-reward-only sweeps.",
+    )
+    parser.add_argument(
+        "--skip_ensemble_eval",
+        action="store_true",
+        help="Skip test-time ensemble evaluation and save only train-side perturbation results.",
+    )
     
     args = parser.parse_args()
     
@@ -79,6 +99,7 @@ def parse_args():
     
     os.environ["CUDA_VISIBLE_DEVICES"] = args.cuda_devices
     os.environ["VLLM_RANDOPT_PERTURB_SEED_MODE"] = args.perturb_seed_mode
+    os.environ["VLLM_RANDOPT_PERTURB_SCALE_MODE"] = args.perturb_scale_mode
     random.seed(args.global_seed)
     np.random.seed(args.global_seed)
     torch.manual_seed(args.global_seed)
@@ -109,7 +130,7 @@ def load_data(handler, args):
     return train_datas, test_datas
 
 
-def evaluate_base_model(engines, handler, train_prompts, test_prompts, train_datas, test_datas, sampling_params):
+def evaluate_base_model(engines, handler, train_prompts, test_prompts, train_datas, test_datas, sampling_params, *, skip_base_test_eval=False):
     """Evaluate base model on train and test sets."""
     print(f"\n{'='*60}\nBASE MODEL EVALUATION\n{'='*60}")
     
@@ -117,9 +138,13 @@ def evaluate_base_model(engines, handler, train_prompts, test_prompts, train_dat
     base_train = handler.postprocess_outputs(train_outputs, train_datas)
     print(f"Train: {base_train*100:.2f}%")
     
-    test_outputs = ray.get(engines[0].generate.remote(test_prompts, sampling_params, use_tqdm=False))
-    base_test = handler.postprocess_outputs(test_outputs, test_datas)
-    print(f"Test:  {base_test*100:.2f}%")
+    base_test = None
+    if skip_base_test_eval:
+        print("Test:  skipped")
+    else:
+        test_outputs = ray.get(engines[0].generate.remote(test_prompts, sampling_params, use_tqdm=False))
+        base_test = handler.postprocess_outputs(test_outputs, test_datas)
+        print(f"Test:  {base_test*100:.2f}%")
     
     return base_train, base_test
 
@@ -266,7 +291,9 @@ def run_ensemble_evaluation(args, engines, handler, test_prompts, test_datas, to
         
         acc = correct / num_samples * 100
         ensemble_results[k_value] = {"accuracy": acc, "correct": correct}
-        print(f"  K={k_value}: {acc:.2f}% ({correct}/{num_samples}) [+{acc - base_test*100:.2f}%]")
+        delta = acc - (base_test * 100 if base_test is not None else 0.0)
+        delta_label = f"[+{delta:.2f}%]" if base_test is not None else "[base test skipped]"
+        print(f"  K={k_value}: {acc:.2f}% ({correct}/{num_samples}) {delta_label}")
     
     # Clean up all_answers after evaluation
     del all_answers
@@ -306,6 +333,9 @@ def save_results(args, logging_dir, model_saves_dir, base_model_path, handler,
         "dataset": args.dataset,
         "model": args.model_name,
         "perturb_seed_mode": args.perturb_seed_mode,
+        "perturb_scale_mode": args.perturb_scale_mode,
+        "skip_base_test_eval": args.skip_base_test_eval,
+        "skip_ensemble_eval": args.skip_ensemble_eval,
         "train_samples": args.train_samples,
         "test_samples": args.test_samples,
         "base_train_accuracy": base_train,
@@ -404,7 +434,15 @@ def main(args):
     try:
         if not is_resume:
             base_train, base_test = evaluate_base_model(
-                engines, handler, train_prompts, test_prompts, train_datas, test_datas, sampling_params)
+                engines,
+                handler,
+                train_prompts,
+                test_prompts,
+                train_datas,
+                test_datas,
+                sampling_params,
+                skip_base_test_eval=args.skip_base_test_eval or args.skip_ensemble_eval,
+            )
             
             # Perturbation sampling
             perf, best_sigma = run_sampling(
@@ -426,8 +464,13 @@ def main(args):
                 print(f"  {i+1}. seed={seed}, σ={sigma}: {reward:.4f}")
         
         # Ensemble evaluation
-        ensemble_results = run_ensemble_evaluation(
-            args, engines, handler, test_prompts, test_datas, top_k_perturbs, sampling_params, base_test)
+        ensemble_results = {}
+        if args.skip_ensemble_eval:
+            print(f"\n{'='*60}\nENSEMBLE EVALUATION\n{'='*60}")
+            print("Skipped ensemble evaluation.")
+        else:
+            ensemble_results = run_ensemble_evaluation(
+                args, engines, handler, test_prompts, test_datas, top_k_perturbs, sampling_params, base_test)
         
         save_results(args, logging_dir, model_saves_dir, base_model_path, handler,
                     base_train, base_test, top_k_perturbs, top_k_rewards,

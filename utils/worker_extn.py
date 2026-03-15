@@ -70,6 +70,27 @@ class WorkerExtension:
         """How perturbation RNG should advance across parameter tensors."""
         return os.environ.get("VLLM_RANDOPT_PERTURB_SEED_MODE", "per_parameter")
 
+    def _perturb_scale_mode(self) -> str:
+        """How perturbation magnitude should be scaled across tensors."""
+        return os.environ.get("VLLM_RANDOPT_PERTURB_SCALE_MODE", "absolute")
+
+    def _clear_tensor_scales(self):
+        if hasattr(self, "_tensor_scales"):
+            del self._tensor_scales
+
+    def _tensor_scale(self, name: str, p) -> float:
+        if self._perturb_scale_mode() == "absolute":
+            return 1.0
+        if not hasattr(self, "_tensor_scales"):
+            self._tensor_scales = {}
+        if name not in self._tensor_scales:
+            source = self._base_weights[name] if hasattr(self, "_base_weights") and name in self._base_weights else p.data
+            scale = source.detach().to(torch.float32).std().item()
+            if not np.isfinite(scale) or scale == 0.0:
+                scale = 1.0
+            self._tensor_scales[name] = float(scale)
+        return self._tensor_scales[name]
+
     @staticmethod
     def _make_generator(device, seed: int) -> torch.Generator:
         gen = torch.Generator(device=device)
@@ -89,7 +110,7 @@ class WorkerExtension:
                 gen = self._make_generator(p.device, seed)
             noise = torch.randn(p.shape, dtype=p.dtype, device=p.device, generator=gen)
             if self._should_perturb(name):
-                p.data.add_(sign * scale * noise)
+                p.data.add_(sign * scale * self._tensor_scale(name, p) * noise)
             del noise
         if torch.cuda.is_available():
             torch.cuda.synchronize()
@@ -110,7 +131,7 @@ class WorkerExtension:
             noise = torch.randn(p.shape, dtype=p.dtype, device=p.device, generator=gen)
             if self._should_perturb(name):
                 # Undo: subtract what we added (sign * sigma * noise)
-                p.data.add_(-sign * float(SIGMA) * noise)
+                p.data.add_(-sign * float(SIGMA) * self._tensor_scale(name, p) * noise)
             del noise
         if torch.cuda.is_available():
             torch.cuda.synchronize()
@@ -171,6 +192,7 @@ class WorkerExtension:
         if torch.cuda.is_available():
             torch.cuda.synchronize()
         torch.cuda.empty_cache()
+        self._clear_tensor_scales()
         gc.collect()
         return True
 
@@ -239,6 +261,7 @@ class WorkerExtension:
         self._base_weights = {}
         for name, p in self.model_runner.model.named_parameters():
             self._base_weights[name] = p.data.clone()
+        self._clear_tensor_scales()
         if torch.cuda.is_available():
             torch.cuda.synchronize()
         return True
@@ -249,15 +272,19 @@ class WorkerExtension:
             raise RuntimeError("Must call store_base_weights first")
         
         self._set_seed(seed)
+        seed_mode = self._perturb_seed_mode()
+        shared_gens = {}
         for name, p in self.model_runner.model.named_parameters():
             # Restore base weights first
             p.data.copy_(self._base_weights[name])
             # Then apply perturbation (skip visual encoder)
-            gen = torch.Generator(device=p.device)
-            gen.manual_seed(int(seed))
+            if seed_mode == "global_stream":
+                gen = shared_gens.setdefault(p.device, self._make_generator(p.device, seed))
+            else:
+                gen = self._make_generator(p.device, seed)
             noise = torch.randn(p.shape, dtype=p.dtype, device=p.device, generator=gen)
             if self._should_perturb(name):
-                p.data.add_(float(sigma) * noise)
+                p.data.add_(float(sigma) * self._tensor_scale(name, p) * noise)
             del noise
         if torch.cuda.is_available():
             torch.cuda.synchronize()
@@ -278,6 +305,7 @@ class WorkerExtension:
         """Free memory used by stored base weights."""
         if hasattr(self, '_base_weights'):
             del self._base_weights
+        self._clear_tensor_scales()
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -306,6 +334,8 @@ class WorkerExtension:
             weights = [w / total for w in weights]
         
         param_count = 0
+        seed_mode = self._perturb_seed_mode()
+        shared_gens = {}
         for name, p in self.model_runner.model.named_parameters():
             # Start with base weights
             p.data.copy_(self._base_weights[name])
@@ -315,15 +345,17 @@ class WorkerExtension:
                 perturbation = torch.zeros_like(p.data, dtype=torch.float32)
                 
                 for (seed, sigma), weight in zip(seeds_sigmas, weights):
-                    gen = torch.Generator(device=p.device)
-                    gen.manual_seed(int(seed))
+                    if seed_mode == "global_stream":
+                        gen = shared_gens.setdefault((int(seed), p.device), self._make_generator(p.device, seed))
+                    else:
+                        gen = self._make_generator(p.device, seed)
                     noise = torch.randn(p.shape, dtype=p.dtype, device=p.device, generator=gen)
                     
                     # Convert to float32 and scale in-place
                     noise_fp32 = noise.to(torch.float32)
                     del noise  # Free original noise immediately
                     
-                    noise_fp32.mul_(weight * float(sigma))
+                    noise_fp32.mul_(weight * float(sigma) * self._tensor_scale(name, p))
                     perturbation.add_(noise_fp32)
                     del noise_fp32  # Clean up immediately
                 
